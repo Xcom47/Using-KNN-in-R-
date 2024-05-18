@@ -1,0 +1,115 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+############ Anna's World is setting up their business so they are not so reliant on selling gas. One way is to increase the sales of profitable products. I will use a KNN algorithm to address the business problem of predicting when a transaction will be a sale of a high gross profit margin.##########
+
+######## Brian Estvander 17 MAY 2024 #######
+######## KNN ANALYSIS USING R ##########
+
+```{r}
+# Load packages----
+library(tidyverse)
+
+# install.packages('e1071')----
+library(e1071)
+
+# Build Confusion Matrix Function----
+my_confusion_matrix <- function(cf_table) {
+  true_positive <- cf_table[4]
+  true_negative <- cf_table[1]
+  false_positive <- cf_table[2]
+  false_negative <- cf_table[3]
+  accuracy <- (true_positive + true_negative) / (true_positive + true_negative + false_positive + false_negative)
+  sensitivity_recall <- true_positive / (true_positive + false_negative) 
+  specificity_selectivity <- true_negative / (true_negative + false_positive)
+  precision <- true_positive / (true_positive + false_positive) 
+  neg_pred_value <- true_negative/(true_negative + false_negative)
+  print(cf_table)
+  my_list <- list(sprintf("%1.0f = True Positive (TP), Hit", true_positive),
+                  sprintf("%1.0f = True Negative (TN), Rejection", true_negative),
+                  sprintf("%1.0f = False Positive (FP), Type 1 Error", false_positive),
+                  sprintf("%1.0f = False Negative (FN), Type 2 Error", false_negative),
+                  sprintf("%1.4f = Accuracy (TP+TN/(TP+TN+FP+FN))", accuracy), 
+                  sprintf("%1.4f = Sensitivity, Recall, Hit Rate, True Positive Rate (How many positives did the model get right? TP/(TP+FN))", sensitivity_recall),
+                  sprintf("%1.4f = Specificity, Selectivity, True Negative Rate (How many negatives did the model get right? TN/(TN+FP))", specificity_selectivity),                   
+                  sprintf("%1.4f = Precision, Positive Predictive Value (How good are the model's positive predictions? TP/(TP+FP))", precision),
+                  sprintf("%1.4f = Negative Predictive Value (How good are the model's negative predictions? TN/(TN+FN)", neg_pred_value)
+  )
+  return(my_list)
+}
+```
+```{r}
+# Read in data----
+knn_input <- read_rds('knn_input.rds')
+str(knn_input)
+slice_sample(knn_input, n=10)
+```
+```{r}
+# Explore the target feature
+
+freq <- table(knn_input$high_gpm)
+freq[2]/(freq[1]+freq[2])
+contrasts(knn_input$high_gpm)
+```
+```{r}
+# Partition the data
+
+library(caret)
+set.seed(77)
+partition <- caret::createDataPartition(y=knn_input$high_gpm, p=.75, list=FALSE)
+data_train <- knn_input[partition, ]
+data_test <- knn_input[-partition, ]
+```
+```{r}
+# Separate the target variable
+
+X_train <- data_train %>% select(-high_gpm)
+X_test <-  data_test %>% select(-high_gpm) 
+y_train <- data_train$high_gpm
+y_test <- data_test$high_gpm
+```
+
+```{r}
+# z-score standardization
+
+X_train <- scale(X_train)
+X_test <- scale(X_test)
+```
+
+```{r}
+# Double check sizes
+
+nrow(X_train)/(nrow(X_test)+nrow(X_train))
+dim(X_train)
+length(y_train)
+```
+```{r}
+# I took the square root of the total number of rows to get my k.
+# Run the model
+
+library(class)
+knn1 = class::knn(train=X_train, test=X_test, cl=y_train, k=141)
+```
+
+```{r}
+# Run Confusion matrix to check accuracy
+# Prediction on left and truth on top
+
+table2 <- table(knn1, y_test) 
+my_confusion_matrix(table2)
+```
+```{r}
+# Pre-programmed confusion matrix
+
+caret::confusionMatrix(knn1, y_test, positive='high')
+```
+```{r}
+# Evaluate the data
+
+data_test$prediction <- knn1
+data_test <- data_test %>% mutate(correct = high_gpm==prediction)
+slice_sample(data_test, n=20)
+```
+##### Overall, our model does a great job at predicting when a purchase will be high profit margin versus low profit margin and gets it right 83% of the time. The aspect of the model that is the least effective is its sensitivity and the aspect that is the most effective is the specificity. This means that the models is very good at classifying the low margin purchases successfully (specificity), but slightly worse at classifying the high margin purchases correctly (sensitivity). Thus, while the model is quite good overall, it particularly excels at identifying bad transactions. #####
