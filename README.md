@@ -1,4 +1,4 @@
-# Using-KNN-in-R-
+# Buisness Analytics---Using-KNN-in-R-
 Predict classification of products that increase gross profit margin using KNN in R
 
 Anna's World Inc. wants to predict what products will increase their gross profit margin along with purchase of fuel. 
